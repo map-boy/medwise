@@ -28,12 +28,29 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       setSession: (session) => set({ session }),
       setLoading: (loading) => set({ loading }),
+
       fetchProfile: async () => {
-        const current = get().user;
-        if (current) { set({ loading: false }); return; }
-        set({ loading: false });
+        const { supabase } = await import('@/lib/supabase');
+
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) { set({ loading: false, user: null }); return; }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, phone, role, full_name')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profile) {
+          set({ user: profile, loading: false });
+        } else {
+          set({ user: null, loading: false });
+        }
       },
+
       signOut: async () => {
+        const { supabase } = await import('@/lib/supabase');
+        await supabase.auth.signOut();
         set({ user: null, session: null });
       },
     }),
